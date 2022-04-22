@@ -79,6 +79,14 @@ err() {
     exit 1
 }
 
+add_repo_dir() {
+    for i in $(echo $REPO_PATH | tr ";" "\n")
+    do
+        [ -d "$i/$1" ] && export REPO_DIR="$i"
+    done
+    [ -z "$MAIN_REPO_DIR" ] && err "nyaa: package does not exist"
+}
+
 build_package() {
     
     # Checking if the user is root
@@ -188,8 +196,8 @@ install_package() {
 install_binaries() {
     chkroot
     #shellcheck source=/dev/null
-    add_repo_dir "$1"
-    . "$REPO_DIR"/"$1"/run
+
+    . "$MAIN_REPO_DIR"/"alplinux"/"$1"/run
     [ ! -d "/etc/apm.tarballs" ] && mkdir -p /etc/apm.tarballs
     TARBALL="apm-tarball-$1-$VERSION.tar.gz"
     cd /etc/apm.tarballs || err "apm: an error occured"
