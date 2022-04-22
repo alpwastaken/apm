@@ -79,15 +79,6 @@ err() {
     exit 1
 }
 
-add_repo_dir() {
-    for i in $(echo $REPO_PATH | tr ";" "\n")
-    do
-        [ -d "$i/$1" ] && export REPO_DIR="$i"
-    done
-    [ -z "$REPO_DIR" ] && err "apm: package does not exist"
-}
-
-
 build_package() {
     
     # Checking if the user is root
@@ -114,7 +105,7 @@ build_package() {
     export ROOT=/tmp/apm_build
     export SRCDIR=/tmp/apm_srcdir
     export DESTDIR="$ROOT"
-    
+
     # Removing the folders if they exist already
     [ -d "$SRCDIR" ] && rm -rf $SRCDIR
     [ -d "$ROOT" ] && rm -rf $ROOT
@@ -122,21 +113,38 @@ build_package() {
     # Making the folders again
     mkdir -p $ROOT
     mkdir -p $SRCDIR
-   
-    add_repo_dir "$1"
 
-    # Sourcing the package runfile
-    # shellcheck source=/dev/null
-    . "$REPO_DIR"/"$1"/run
+    if [ -f "$MAIN_REPO_DIR"/"alplinux"/"$1"/run ]; then
+        # Sourcing the package runfile
+        #shellcheck source=/dev_null
+        . "$MAIN_REPO_DIR"/"alplinux"/"$1"/run
 
-    # Building the package and making it into a nice tarball
-    cd $SRCDIR || exit 1
-    build
-    cd $ROOT || exit 1
-    installpkg 2> /dev/null || echo "apm: installpkg function not found, skipping"
-    [ ! -d "/etc/apm.tarballs" ] && mkdir -p /etc/apm.tarballs
-    tar -czvf /etc/apm.tarballs/apm-tarball-"$1"-"$VERSION".tar.gz ./*
-    unset ROOT
+        # Building the package and making it into nice tarball
+        cd $SRCDIR || exit 1
+        build
+        cd $ROOT || exit 1
+        installpkg 2> /dev/null || echo "apm: installpkg function not found, skipping"
+        [ ! -d "/etc/apm.tarballs" ] && mkdir -p /etc/apm.tarballs
+        tar -czvf /etc/apm.tarballs/apm-tarball-"$1"-"$VERSION".tar.gz ./*
+        unset ROOT
+    else
+        echo "Which repo will you use"
+        info $1
+        read WHICH_REPO
+        
+        # Sourcing the package runfile
+        # shellcheck source=/dev/null
+        . "$REPO_PATH"/"$WHICH_REPO"/"$1"/run
+
+        # Building the package and making it into a nice tarball
+        cd $SRCDIR || exit 1
+        build
+        cd $ROOT || exit 1
+        installpkg 2> /devnull || echo "apm: installpkg function not found, skipping"
+        [ ! -d "/etc/apm.tarballs" ] && mkdir -p /etc/apm.tarballs
+        tar -czvf /etc/apm.tarballs/apm-tarball-"$1"-"$VERSION".tar.gz ./*
+        unset ROOT
+    fi
     
     # Installing packaged tarball
     if [ ! "$DONT_INSTALL" = "1" ]; then
@@ -155,7 +163,7 @@ build_package() {
                 ;;
         esac
     fi
-} 
+}
 
 install_package() {
     # Install tarball 
@@ -277,7 +285,7 @@ remove_packages() {
 # A basic git pull and a check to see if the repositories actually exist.
 update_packages() {
     chkroot
-    [ ! -d "$MAIN_REPO_DIR"/"alplinux" ] && git clone https://git.kreatea.space/kreato-linux/apm-repo $MAIN_REPO_DIR || cd $MAIN_REPO_DIR && git pull
+    [ ! -d "$MAIN_REPO_DIR/alplinux" ] && git clone https://git.kreatea.space/kreato-linux/nyaa-repo "$MAIN_REPO_DIR/alplinux" || cd $MAIN_REPO_DIR && git pull
     for i in $(ls $REPO_PATH)
     do
     cd $REPO_PATH || exit 1
