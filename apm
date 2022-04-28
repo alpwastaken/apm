@@ -22,7 +22,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 CONF="/etc/apm/apm.conf"
 INSTALLED_DIR="/etc/apm.installed/"
-MAIN_REPO_DIR="/etc/apm"
+MAIN_REPO_DIR="/etc/apm/alplinux"
 # Root checker
 chkroot() {
      if [ "$(id -u)" != "0" ]; then
@@ -122,10 +122,10 @@ build_package() {
     mkdir -p $ROOT
     mkdir -p $SRCDIR
 
-    if [ -f "$MAIN_REPO_DIR"/"alplinux"/"$1"/run ]; then
+    if [ -f "$MAIN_REPO_DIR"/"$1"/run ]; then
         # Sourcing the package runfile
         #shellcheck source=/dev_null
-        . "$MAIN_REPO_DIR"/"alplinux"/"$1"/run
+        . "$MAIN_REPO_DIR"/"$1"/run
 
         # Building the package and making it into nice tarball
         cd $SRCDIR || exit 1
@@ -180,12 +180,12 @@ install_package() {
         cd "$ROOT" || err "apm: unknown error" 
         tar -hxvf "$2" > /tmp/"$1".log
         [ ! -d "$ROOT/$INSTALLED_DIR/$1" ] && mkdir -p "$ROOT/$INSTALLED_DIR/$1"
-        cp -rf "$REPO_DIR/$1/"* "$ROOT/$INSTALLED_DIR/$1"
+        cp -rf "$MAIN_REPO_DIR/$1/"* "$ROOT/$INSTALLED_DIR/$1"
         mv /tmp/"$1".log "$ROOT/$INSTALLED_DIR/$1/list_files"
     else
         tar -xvf "$2" -C /
         [ ! -d "$INSTALLED_DIR/$1" ] && mkdir -p "$INSTALLED_DIR/$1"
-        cp -rf "$REPO_DIR/$1/"* "$INSTALLED_DIR/$1"
+        cp -rf "$MAIN_REPO_DIR/$1/"* "$INSTALLED_DIR/$1"
         mv /tmp/"$1".log "$INSTALLED_DIR/$1/list_files"
     fi
 }
@@ -197,7 +197,7 @@ install_binaries() {
     chkroot
     #shellcheck source=/dev/null
 
-    . "$MAIN_REPO_DIR"/"alplinux"/"$1"/run
+    . "$MAIN_REPO_DIR"/"$1"/run
     [ ! -d "/etc/apm.tarballs" ] && mkdir -p /etc/apm.tarballs
     TARBALL="apm-tarball-$1-$VERSION.tar.gz"
     cd /etc/apm.tarballs || err "apm: an error occured"
@@ -238,8 +238,7 @@ install_binaries() {
 # This allows us to make a complete loop that doesnt exit until dependencies are in the `deps` environment variable.
 
 chkdeps() {
-    add_repo_dir "$2"
-    for cLine in $(cat "$REPO_DIR/$2/deps" 2> /dev/null)
+    for cLine in $(cat "$MAIN_REPO_DIR/$2/deps" 2> /dev/null)
     do
     if [ ! -d "$ROOT/$INSTALLED_DIR/$2" ]; then
         deps="$deps $cLine"
@@ -254,11 +253,11 @@ dep_handler() {
         printf "apm: have to supply a package name\n" 
         exit 1
     else    
-        if [ ! -d "$REPO_DIR/$2" ]; then
+        if [ ! -d "$MAIN_REPO_DIR/$2" ]; then
             printf "apm: invalid package name/repo isnt initialized (apm u to initialize)\n"
             exit 1
         else
-            for Line in $(cat "$REPO_DIR/$2/deps" 2> /dev/null)	
+            for Line in $(cat "$MAIN_REPO_DIR/$2/deps" 2> /dev/null)	
             do
                 deps="$deps $Line"
                 chkdeps "" "$Line" 
@@ -293,7 +292,7 @@ remove_packages() {
 # A basic git pull and a check to see if the repositories actually exist.
 update_packages() {
     chkroot
-    [ ! -d "$MAIN_REPO_DIR/alplinux" ] && git clone https://git.kreatea.space/kreato-linux/nyaa-repo "$MAIN_REPO_DIR/alplinux" || cd $MAIN_REPO_DIR && git pull
+    [ ! -d "$MAIN_REPO_DIR" ] && git clone https://git.kreatea.space/kreato-linux/nyaa-repo $MAIN_REPO_DIR || cd $MAIN_REPO_DIR && git pull
     for i in $(ls $REPO_PATH)
     do
     cd $REPO_PATH || exit 1
@@ -315,7 +314,7 @@ upgrade_packages() {
 	LOCAL_VERSION=$VERSION
 	add_repo_dir "$w"
     #shellcheck source=/dev/null
-    . "$REPO_DIR/$w"/run
+    . "$MAIN_REPO_DIR/$w"/run
 	REPO_VERSION=$VERSION
 	if [ ! "$LOCAL_VERSION" = "$REPO_VERSION" ]
         then
@@ -332,9 +331,8 @@ upgrade_packages() {
 
 # Get information about the package from the runfile
 get_info() {
-    add_repo_dir "$1"
     #shellcheck source=/dev/null
-    . "$REPO_DIR/$1"/run
+    . "$MAIN_REPO_DIR/$1"/run
     [ -d "$INSTALLED_DIR/$1" ] && ISINSTALLED=yes
     [ ! -d "$INSTALLED_DIR/$1" ] && ISINSTALLED=no
     echo "package name: $NAME"
